@@ -36,7 +36,18 @@ int get_file_size(std::string filename) // path to file
 
 
 
-void generate_kmers(k, 
+void gen_kmers_ascii(std::string seq, int k) {
+	int n = seq.length();
+	
+	for(int i = 0; i < n - k + 1; i++){
+		std::cout << seq.substr(i, k) << std::endl;
+		//void* seq_start = (void*)i;
+		//cpu = to_cpu(seq_start);
+		//enqueue(cpu, seq_start);		
+	}  
+
+}
+
 
 void *parse_thread(void *threadarg){
 	struct thread_data *t_data;
@@ -62,6 +73,7 @@ void *parse_thread(void *threadarg){
 		*/
 
 		std::cout << seq->seq.s << std::endl;
+		//gen_kmers_ascii(seq->seq.s, 3);
 		std::cout << seq->seq.l << std::endl;
     	DnaBitset encoded_seq(seq->seq.s, seq->seq.l);
     	const char* dna_str_recovered = encoded_seq.to_string();
@@ -82,7 +94,7 @@ void *parse_thread(void *threadarg){
 
 
 int spawn_threads(uint32_t num_threads){
-	std::string f1 = "test.fa"; 
+	std::string f1 = "ntest.fa"; 
 	int f_sz = get_file_size(f1);	
 	int seg_sz = f_sz / num_threads;	
 	
