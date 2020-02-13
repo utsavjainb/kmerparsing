@@ -95,6 +95,10 @@ public:
         dna_str[m_len] = '\0';
         return dna_str;
     }
+	
+	uint8_t* get_encodedseq() const {
+		return m_data;
+	}
 
 private:
     uint8_t* m_data;

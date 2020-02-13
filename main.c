@@ -4,6 +4,7 @@
 #include <numa.h>
 #include "kseq.h"
 #include "dna.h"
+#include "calc.h"
 #include "numa.hpp"
 #include <string>
 #include <vector>
@@ -15,24 +16,16 @@ KSEQ_INIT(gzFile, gzread)
 
 Numa n;
 std::vector <numa_node> nodes = n.get_node_config();
+long pgsize = 4096;
 
 struct thread_data {
 	int thread_id;
-	int start;
-	int end;
+	long start;
+	long end;
 	std::string fname;	
 };
 
 
-int get_file_size(std::string filename) // path to file
-{
-    FILE *p_file = NULL;
-    p_file = fopen(filename.c_str(),"rb");
-    fseek(p_file,0,SEEK_END);
-    int size = ftell(p_file);
-    fclose(p_file);
-    return size;
-}
 
 
 
@@ -72,9 +65,9 @@ void *parse_thread(void *threadarg){
 		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 		*/
 
-		std::cout << seq->seq.s << std::endl;
+		//std::cout << seq->seq.s << std::endl;
 		//gen_kmers_ascii(seq->seq.s, 3);
-		std::cout << seq->seq.l << std::endl;
+		//std::cout << seq->seq.l << std::endl;
     	DnaBitset encoded_seq(seq->seq.s, seq->seq.l);
     	const char* dna_str_recovered = encoded_seq.to_string();
     	std::cout << "recovered sequence: " << dna_str_recovered << "\n";
@@ -91,23 +84,34 @@ void *parse_thread(void *threadarg){
 	gzclose(fp);
 }
 
+long roundup(long n, long m) {
+    return n >= 0 ? ((n + m - 1) / m) * m : (n / m) * m;
+}
 
-
-int spawn_threads(uint32_t num_threads){
+int spawn_threads(uint32_t num_threads, std::string f){
 	std::string f1 = "ntest.fa"; 
-	int f_sz = get_file_size(f1);	
-	int seg_sz = f_sz / num_threads;	
+	long f_sz = get_file_size(f);	
+	std::cout << "f_sz: " << f_sz << std::endl;
+	long seg_sz = get_seg_size(f_sz, num_threads);
+	std::cout << "seg_sz: " << seg_sz << std::endl;
 	
 	cpu_set_t cpuset; 
 
 	pthread_t threads[num_threads];
 	struct thread_data td[num_threads];
 	int rc;	
-	for(unsigned int i = 0; i < 1; i++){
+	long lastend = 0;
+	for(unsigned int i = 0; i < num_threads; i++){
 		td[i].thread_id = i;
-		td[i].fname = f1;
-		td[i].start = seg_sz * i;
-		td[i].end = seg_sz * (i+1);
+		td[i].fname = f;
+		td[i].start = round_down(seg_sz * i, pgsize);
+		td[i].end = round_up(seg_sz * (i+1), pgsize);
+		if ( i > 0 and td[i].end <= lastend){
+			break;
+		}	
+		lastend = td[i].end;
+		std::cout << td[i].start << std::endl;
+		std::cout << td[i].end << std::endl;
 		rc = pthread_create(&threads[i], NULL, parse_thread, (void *)&td[i]);	
 	
 		if (rc) {
@@ -127,16 +131,15 @@ int spawn_threads(uint32_t num_threads){
 	pthread_exit(NULL);
 
 	return 0;
-
 }
 
-
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
+	if (argc == 1) {
+		fprintf(stderr, "Usage: %s <in.seq>\n", argv[0]);
+		return 1;
+	}
+	std::string f(argv[1]);
 	uint32_t num_threads = nodes[0].num_cpus;	
-	std::cout << num_threads << std::endl;
-	spawn_threads(num_threads);	
-	//std::string f1 = "protein.fa"; 
-	//std::cout << "totsz: " << get_file_size(f1) << std::endl;
+	spawn_threads(num_threads, f);	
 	return 0;
 }
