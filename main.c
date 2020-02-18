@@ -27,8 +27,6 @@ struct thread_data {
 
 
 
-
-
 void gen_kmers_ascii(std::string seq, int k) {
 	int n = seq.length();
 	
@@ -84,16 +82,15 @@ void *parse_thread(void *threadarg){
 	gzclose(fp);
 }
 
-long roundup(long n, long m) {
-    return n >= 0 ? ((n + m - 1) / m) * m : (n / m) * m;
-}
-
 int spawn_threads(uint32_t num_threads, std::string f){
-	std::string f1 = "ntest.fa"; 
 	long f_sz = get_file_size(f);	
 	std::cout << "f_sz: " << f_sz << std::endl;
 	long seg_sz = get_seg_size(f_sz, num_threads);
 	std::cout << "seg_sz: " << seg_sz << std::endl;
+	
+	if (seg_sz < 4096) {
+		seg_sz = 4096;
+	}
 	
 	cpu_set_t cpuset; 
 
@@ -104,14 +101,14 @@ int spawn_threads(uint32_t num_threads, std::string f){
 	for(unsigned int i = 0; i < num_threads; i++){
 		td[i].thread_id = i;
 		td[i].fname = f;
-		td[i].start = round_down(seg_sz * i, pgsize);
+		td[i].start = round_up(seg_sz * i, pgsize);
 		td[i].end = round_up(seg_sz * (i+1), pgsize);
-		if ( i > 0 and td[i].end <= lastend){
+		if (td[i].start > f_sz){
 			break;
-		}	
+		}
 		lastend = td[i].end;
-		std::cout << td[i].start << std::endl;
-		std::cout << td[i].end << std::endl;
+		std::cout << "Seg start: " << td[i].start << std::endl;
+		std::cout << "Seg end: " << td[i].end << std::endl;
 		rc = pthread_create(&threads[i], NULL, parse_thread, (void *)&td[i]);	
 	
 		if (rc) {
@@ -140,6 +137,7 @@ int main(int argc, char *argv[]) {
 	}
 	std::string f(argv[1]);
 	uint32_t num_threads = nodes[0].num_cpus;	
+	std::cout << "num thread: " << num_threads << std::endl;
 	spawn_threads(num_threads, f);	
 	return 0;
 }
