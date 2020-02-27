@@ -52,10 +52,10 @@ void *parse_thread(void *threadarg){
 	seq = kseq_init(fp);
 
 	while ((l = kseq_read(seq)) >= 0) {
-		printf("name: %s\n", seq->name.s);
-		if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
-		printf("seq: %s\n", seq->seq.s);
-		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+		//printf("name: %s\n", seq->name.s);
+		//if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
+		//printf("seq: %s\n", seq->seq.s);
+		//if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 
 		//std::cout << seq->seq.s << std::endl;
 		//gen_kmers_ascii(seq->seq.s, 3);
@@ -71,7 +71,7 @@ void *parse_thread(void *threadarg){
 		}	
 		
 	}
-	std::cout  << " THREAD " << t_data->thread_id <<  " DONE" << std::endl;
+	//std::cout  << " THREAD " << t_data->thread_id <<  " DONE" << std::endl;
 	kseq_destroy(seq);
 	gzclose(fp);
 	pthread_exit(NULL);
@@ -79,9 +79,9 @@ void *parse_thread(void *threadarg){
 
 int spawn_threads(uint32_t num_threads, std::string f){
 	long f_sz = get_file_size(f);	
-	std::cout << "f_sz: " << f_sz << std::endl;
+	//std::cout << "f_sz: " << f_sz << std::endl;
 	long seg_sz = get_seg_size(f_sz, num_threads);
-	std::cout << "seg_sz: " << seg_sz << std::endl;
+	//std::cout << "seg_sz: " << seg_sz << std::endl;
 	
 	if (seg_sz < 4096) {
 		seg_sz = 4096;
@@ -94,11 +94,15 @@ int spawn_threads(uint32_t num_threads, std::string f){
 	int rc;	
 	long lastend = 0;
 	int threads_created;
+	int tcount = num_threads;
+	bool flag = false;
 	for(unsigned int i = 0; i < num_threads; i++){
 		td[i].start = round_up(seg_sz * i, pgsize);
 		td[i].end = round_up(seg_sz * (i+1), pgsize);
 		if (td[i].start >= f_sz){
-			std::cout << "did not create thead: " << i << std::endl;
+			//std::cout << "did not create Thread " << i << std::endl;
+			tcount = i;
+			flag = true;
 			break;
 		}
 		else{
@@ -107,8 +111,8 @@ int spawn_threads(uint32_t num_threads, std::string f){
 		td[i].thread_id = i;
 		td[i].fname = f;
 		lastend = td[i].end;
-		std::cout << "Seg start: " << td[i].start << std::endl;
-		std::cout << "Seg end: " << td[i].end << std::endl;
+		//std::cout << "Seg start: " << td[i].start << std::endl;
+		//std::cout << "Seg end: " << td[i].end << std::endl;
 		rc = pthread_create(&threads[i], NULL, parse_thread, (void *)&td[i]);	
 	
 		if (rc) {
@@ -125,9 +129,10 @@ int spawn_threads(uint32_t num_threads, std::string f){
 		pthread_setaffinity_np(threads[i], sizeof(cpu_set_t), &cpuset);
 	
 	}
-	std::cout << "threads created " << threads_created << std::endl;
-   	for(unsigned int i = 0; i < threads_created - 1; i++){
-		std::cout << "joining thread " << i << std::endl;
+	//std::cout << "tcount: " << tcount <<  std::endl;
+	//std::cout << "threads created " << threads_created << std::endl;
+   	for(unsigned int i = 0; i < tcount; i++){
+		//std::cout << "joining thread " << i << std::endl;
 		pthread_join(threads[i], NULL);
 	}	
 
@@ -141,7 +146,6 @@ int main(int argc, char *argv[]) {
 	}
 	std::string f(argv[1]);
 	uint32_t num_threads = nodes[0].num_cpus;	
-	std::cout << "num thread: " << num_threads << std::endl;
 	spawn_threads(num_threads, f);	
 	return 0;
 }
