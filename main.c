@@ -12,7 +12,6 @@
 #include "libfipc_test_time.h"
 KSEQ_INIT(gzFile, gzread)
 
-//#define NUM_THREADS 2
 
 Numa n;
 std::vector <numa_node> nodes = n.get_node_config();
@@ -71,7 +70,6 @@ void *parse_thread(void *threadarg){
 		}	
 		
 	}
-	//std::cout  << " THREAD " << t_data->thread_id <<  " DONE" << std::endl;
 	kseq_destroy(seq);
 	gzclose(fp);
 	pthread_exit(NULL);
@@ -79,9 +77,7 @@ void *parse_thread(void *threadarg){
 
 int spawn_threads(uint32_t num_threads, std::string f){
 	long f_sz = get_file_size(f);	
-	//std::cout << "f_sz: " << f_sz << std::endl;
 	long seg_sz = get_seg_size(f_sz, num_threads);
-	//std::cout << "seg_sz: " << seg_sz << std::endl;
 	
 	if (seg_sz < 4096) {
 		seg_sz = 4096;
@@ -100,7 +96,6 @@ int spawn_threads(uint32_t num_threads, std::string f){
 		td[i].start = round_up(seg_sz * i, pgsize);
 		td[i].end = round_up(seg_sz * (i+1), pgsize);
 		if (td[i].start >= f_sz){
-			//std::cout << "did not create Thread " << i << std::endl;
 			tcount = i;
 			flag = true;
 			break;
@@ -111,8 +106,6 @@ int spawn_threads(uint32_t num_threads, std::string f){
 		td[i].thread_id = i;
 		td[i].fname = f;
 		lastend = td[i].end;
-		//std::cout << "Seg start: " << td[i].start << std::endl;
-		//std::cout << "Seg end: " << td[i].end << std::endl;
 		rc = pthread_create(&threads[i], NULL, parse_thread, (void *)&td[i]);	
 	
 		if (rc) {
@@ -129,10 +122,7 @@ int spawn_threads(uint32_t num_threads, std::string f){
 		pthread_setaffinity_np(threads[i], sizeof(cpu_set_t), &cpuset);
 	
 	}
-	//std::cout << "tcount: " << tcount <<  std::endl;
-	//std::cout << "threads created " << threads_created << std::endl;
    	for(unsigned int i = 0; i < tcount; i++){
-		//std::cout << "joining thread " << i << std::endl;
 		pthread_join(threads[i], NULL);
 	}	
 
